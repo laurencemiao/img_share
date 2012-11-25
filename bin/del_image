@@ -1,0 +1,77 @@
+#!/usr/bin/env php
+<?php
+
+/*
+ * boot start here
+ */
+$__DIR_CUR__ = dirname(__FILE__);
+define('__DIR_ROOT__', realpath("$__DIR_CUR__/.."));
+define('__DIR_ETC__', __DIR_ROOT__.'/etc');
+define('__DIR_LIBS__', __DIR_ROOT__.'/libs');
+include_once(__DIR_ETC__ . "/cfg.php");
+include_once(__DIR_LIBS__ . "/App.php");
+
+$APP = new App($_CONF);
+
+
+/*
+ * get application resources
+ */
+$server_conf = $APP->getConfig('server');
+$image_api_url = $server_conf['api']['image'];
+
+while(1){
+    /*
+     * get image list from api
+     */
+    $result = Curl::getJson($image_api_url);
+    $cnt = count($result['body']);
+    if($cnt == 0)
+        break;
+    echo "got $cnt images\n";
+
+    foreach($result['body'] as $image){
+        /*
+         * delete this image
+         */
+        $result = Curl::getJson($image_api_url, $image, 'DELETE');
+        if(204 != $result['code']){
+            echo "X";
+            continue;
+        }
+
+        /*
+         * check if it still exists on api
+         */
+        $url = $image_api_url . "?id={$image['id']}";
+        $result = Curl::getJson($url);
+        if(404 != $result['code']){
+            echo "X";
+            continue;
+        }
+
+        /*
+         * check if it still exists on storage
+         */
+        $url = $image['url'];
+        $result = Curl::getJson($url);
+        if(404 != $result['code']){
+            echo "X";
+            continue;
+        }
+
+        /*
+         * check if its thumb still exists on storage
+         */
+        $url = $image['thumb_url'];
+        $result = Curl::getJson($url);
+        if(404 != $result['code']){
+            echo "X";
+            continue;
+        }
+        echo ".";
+    }
+    echo "\n";
+}
+
+

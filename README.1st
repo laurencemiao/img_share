@@ -1,0 +1,74 @@
+Installation
+=====================
+
+0. default setup information
+-------------------------------------------
+style:      standalone, this system do support distributed deployment, at
+            least designed to be.
+dir:        /img_share
+db:         mysql, database name 'img_share' related config file, etc/cfg.php
+httpd:      port 8080, related config file, etc/host.conf, etc/cfg.php
+homepage:   http://localhost:8080, related config file, etc/cfg.php
+dir structure:
+  bin:      executables
+  docs:     documents
+  etc:      config files
+  libs:     libraries
+  log:      logs
+  tmp:      temp files, including newly uploaded files
+  uploads:  image permanent storage
+  web:      http resources, including static and dynamic ones
+For details, please refer to docs/Design_Implementation.ppt
+-------------------------------------------
+COMMENT:
+  Developed/tested on fedora 17, firefox, chrome.
+  Only jpg & png image are tested for thumbnail function.
+----
+
+1. deploy source code to /img_share
+-------------------------------------------
+sudo mkdir /img_share
+sudo chmod a+x /img_share/tmp
+sudo chown -R apache /img_share/uploads /img_share/log
+-------------------------------------------
+CHECK:
+  ls -oh /img_share
+----
+
+2. and init database
+-------------------------------------------
+sudo systemctl start mysqld.service
+mysql -u$USER -p$PASSWORD img_share < /img_share/etc/db.sql
+-------------------------------------------
+CHECK:
+  mysql -u$USER -p$PASSWORD img_share -e 'SHOW TABLES'
+----
+
+3. config web
+-------------------------------------------
+sudo ln -s /img_share/etc/host.conf /etc/httpd/conf.d/img_share.conf
+sudo systemctl restart httpd.service
+-------------------------------------------
+CHECK:
+  curl -I "http://localhost:8080"
+  firefox "http://localhost:8080"
+----
+
+
+Usage
+=====================
+1. how to generate thumb?
+-------------------------------------------
+cd /img_share
+./bin/gen_thumb [imgid]
+-------------------------------------------
+HINT:
+  if [imgid] is omitted, all images without thumb will be thumbed.
+----
+
+2. delete all images
+-------------------------------------------
+cd /img_share
+./bin/del_image
+-------------------------------------------
+

@@ -1,0 +1,17 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>  
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<title>popupwindow</title>
+<script language='javascript'>
+   var arrTemp=self.location.href.split("?");
+   arrTemp = (arrTemp[1].length>0)?arrTemp[1].split("="):"";
+   picId = (arrTemp[1].length>0)?arrTemp[1]:"";
+</script> 
+</head>
+<body>
+<script>
+document.write( "<img src='storage/" + picId + "' style='max-width:100%; max-height:100%;'/>" );
+</script> 
+</body>
+</html>

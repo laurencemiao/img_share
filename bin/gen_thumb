@@ -1,0 +1,106 @@
+#!/usr/bin/env php
+<?php
+
+/*
+ * boot start here
+ */
+$__DIR_CUR__ = dirname(__FILE__);
+define('__DIR_ROOT__', realpath("$__DIR_CUR__/.."));
+define('__DIR_ETC__', __DIR_ROOT__.'/etc');
+define('__DIR_LIBS__', __DIR_ROOT__.'/libs');
+include_once(__DIR_ETC__ . "/cfg.php");
+include_once(__DIR_LIBS__ . "/App.php");
+
+$APP = new App($_CONF);
+
+
+/*
+ * get application resources
+ */
+$store = $APP->getStorageInstance();
+$pdo = $APP->getPdoInstance();
+
+$server_conf = $APP->getConfig('server');
+$image_api_url = $server_conf['api']['image'];
+$upload_api_url = $server_conf['api']['upload'];
+
+$tmp_dir = $server_conf['tmpdir'];
+
+
+/* 
+ * build a query to get images without thumb, or otherwise, specified by
+ * command line.
+ */
+$sql = "SELECT store_id,store_thumb_id FROM gallery";
+
+if($argc > 1){
+    $id = $argv[1];
+    $sql .= " WHERE store_id = '$id'";
+}else{
+    echo "trying to find images without thumbs\n";
+    $sql .= " WHERE store_thumb_id IS NULL";
+}
+
+
+$stm = $pdo->prepare($sql);
+$stm->execute();
+$result = $stm->fetchAll(PDO::FETCH_ASSOC);
+
+
+/*
+ * the main program start here.
+ */
+$cnt = count($result);
+
+echo "found $cnt images\n";
+echo "---------------------\n";
+
+foreach($result as $image){
+    $img_id = $image['store_id'];
+    /* 
+     * storage might be distributed fs, so we make thumb locally,
+     * then upload it to the thumb api.
+     */
+    $img_url = $store->getUrl($img_id);
+    $img_body = file_get_contents($img_url);
+    if($img_body){
+        echo "  image '$img_id' downloaded\n";
+        $tmp_file = tempnam($tmp_dir, "tmpimg_");
+        file_put_contents($tmp_file, $img_body);
+
+        /*
+         * create a new thumb file
+         */
+        $img = new Image($tmp_file);
+        $thumb_file = tempnam($tmp_dir, 'thumb_');
+        $thumb = $img->createThumb($thumb_file, 100);
+        echo "  thumb '$thumb_file' created\n";
+
+        /*
+         * upload the thumb to storage
+         */
+        $post = array(
+            "up_file"=>"@" . $thumb_file,
+        );
+        $result = Curl::getJson($upload_api_url, $post, 'POST.FILE');
+        if($result['code'] == 200){
+            $file = array_shift($result['body']);
+            $file['thumb_id'] = $file['id'];
+            echo "  thumb '$file[thumb_id]' uploaded\n";
+            $file['id'] = $img_id;
+
+            /*
+             * combine/update the image metadata respectively
+             */
+            $result = Curl::getJson($image_api_url, $file, "PUT");
+            if($result['code'] == 204){
+                echo "  thumb '$file[thumb_id]' combined with image '$img_id' successfully\n";
+            }
+        }
+
+        unlink($tmp_file);
+        unlink($thumb_file);
+    }
+}
+
+
